@@ -1,0 +1,11 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "8080:8000"
+      - "9229:9229"
+    volumes:
+      - ./:/usr/src/app
+    environment:
+      - APP_ENV=development
