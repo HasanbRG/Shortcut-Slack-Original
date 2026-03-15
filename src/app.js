@@ -1,12 +1,16 @@
 import ShortcutApi from './ShortcutApi.js';
 import SlackApi from './SlackApi.js';
 import express, { json, urlencoded } from 'express';
-import './WaitingStoriesCron.js'; // Starts cron job for stories in "Needs Edit" state in Shortcut
+// import './WaitingStoriesCron.js'; import './WaitingStoriesCron.js'; // Starts cron job for stories in "Needs Edit" state in Shortcut
 
 var app = express();
 app.use(json());
 app.use(urlencoded({extended: true}));
 app.listen(8000) // Start server
+
+app.get('/', (req, res) => {
+    res.send('OK - Server is running');
+});
 
 app.post('/approve-story', async (req, res) => {
     console.log(`POST /approve-story ${req.body.text}`);

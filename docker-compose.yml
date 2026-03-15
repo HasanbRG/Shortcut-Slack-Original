@@ -7,5 +7,6 @@ services:
       - "9229:9229"
     volumes:
       - ./:/usr/src/app
+      - /usr/src/app/node_modules
     environment:
       - APP_ENV=development

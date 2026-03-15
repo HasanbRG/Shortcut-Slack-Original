@@ -32,7 +32,7 @@ class SlackApi
     }
 
     postStoryApprovalToSlack(storyData) {
-        const message = this.#formatStoryApprovalMessage(storyData);
+        const message = this.#formatStoryMessage(storyData);
 
         console.log(message);
 
@@ -50,7 +50,25 @@ class SlackApi
         return response;
     }
 
-    #formatStoryApprovalMessage(storyData) {
+    postStatusChangeToSlack(storyData, oldStatus, newStatus) {
+        const storyWithStatus = { ...storyData, statusChange: `${oldStatus} → ${newStatus}` };
+        const message = this.#formatStoryMessage(storyWithStatus);
+
+        if (!message)
+            return null;
+
+        var payload = {text: message};
+
+        const response = this.#makeRequest(
+            process.env.SLACK_STATUS_CHANGE_WEBHOOK,
+            this.#HTTP_POST,
+            payload
+        )
+
+        return response;
+    }
+
+    #formatStoryMessage(storyData) {
         let description = storyData.description;
         let customerDetails = description.split(/# Customer[\s\u00A0]Details/);
 
