@@ -5,3 +5,6 @@
 * Formats the card details into readable slack message.
     * e.g. Feature | 31937 | Jupiter | someone@example.com |  Add support to show icons on tabs with active shipments in them {link-to-card}
 * Post message in #feature-requests channel
+
+
+Invoke-WebRequest -Uri "http://localhost:8080/test-waiting-stories" -Method GET / Waiting Stories

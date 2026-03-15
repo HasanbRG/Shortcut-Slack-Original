@@ -10,6 +10,15 @@ const waitingStoriesJob = new CronJob(
     'Europe/London'
 );
 
+const eveningJob = new CronJob(
+    '20 19 * * 1-5',
+    getWaitingStories,
+    null,
+    false,
+    'Europe/London'
+);
+eveningJob.start();
+
 waitingStoriesJob.start();
 
 /**
@@ -19,7 +28,7 @@ async function getWaitingStories()
 {
     const shortcutApi = new ShortcutApi();
     const slackApi = new SlackApi();
-    const storiesResponse = await shortcutApi.searchStories("state:500007166 -is:archived");
+    const storiesResponse = await shortcutApi.searchStories("state:500000022 -is:archived");
 
     let stories = [];
     storiesResponse['data'].forEach(story => {
@@ -67,4 +76,4 @@ function extractProductOwner(story)
     return productOwner;
 }
 
-export default waitingStoriesJob;
+export default { waitingStoriesJob, eveningJob };

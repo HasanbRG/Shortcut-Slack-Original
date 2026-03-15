@@ -1,7 +1,7 @@
 import ShortcutApi from './ShortcutApi.js';
 import SlackApi from './SlackApi.js';
 import express, { json, urlencoded } from 'express';
-// import './WaitingStoriesCron.js'; import './WaitingStoriesCron.js'; // Starts cron job for stories in "Needs Edit" state in Shortcut
+import './WaitingStoriesCron.js'; // Starts cron job for stories in "Needs Edit" state in Shortcut
 
 var app = express();
 app.use(json());
@@ -46,4 +46,38 @@ app.post('/approve-story', async (req, res) => {
     } else {
         res.send("Story failed to send.");
     }
+});
+
+app.get('/test-waiting-stories', async (req, res) => {
+    const shortcutApi = new ShortcutApi();
+    const slackApi = new SlackApi();
+    const storiesResponse = await shortcutApi.searchStories("state:500000022 -is:archived");
+
+    let stories = [];
+    storiesResponse['data'].forEach(story => {
+        let description = story.description;
+        let customerDetails = description.split(/# Customer[\s\u00A0]Details/);
+        let productOwner = null;
+        
+        if (customerDetails[1]) {
+            let company = customerDetails[1].split("\n");
+            company.forEach(element => {
+                let [key, value] = element.split(':');
+                if (key && value && key.trim() === "Product Owner") {
+                    productOwner = value.trim();
+                }
+            });
+        }
+        
+        if (productOwner) {
+            stories.push({
+                url: story['app_url'],
+                agent: productOwner,
+                createdDate: new Date(story['created_at']).toDateString()
+            });
+        }
+    });
+
+    await slackApi.postWaitingStoriesToSlack(stories);
+    res.send('Waiting stories message sent to Slack');
 });

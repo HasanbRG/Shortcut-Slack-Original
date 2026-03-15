@@ -49,25 +49,6 @@ class SlackApi
 
         return response;
     }
-
-    postStatusChangeToSlack(storyData, oldStatus, newStatus) {
-        const storyWithStatus = { ...storyData, statusChange: `${oldStatus} → ${newStatus}` };
-        const message = this.#formatStoryMessage(storyWithStatus);
-
-        if (!message)
-            return null;
-
-        var payload = {text: message};
-
-        const response = this.#makeRequest(
-            process.env.SLACK_STATUS_CHANGE_WEBHOOK,
-            this.#HTTP_POST,
-            payload
-        )
-
-        return response;
-    }
-
     #formatStoryMessage(storyData) {
         let description = storyData.description;
         let customerDetails = description.split(/# Customer[\s\u00A0]Details/);
@@ -134,14 +115,24 @@ class SlackApi
     }
 
     #formatWaitingStoriesMessage(stories) {
-        let message = "<!here>\n*Cards waiting in Needs Edit:*";
+    // Count stories by agent
+    const agentCounts = {};
+    stories.forEach(story => {
+        if (story['agent']) {
+            agentCounts[story['agent']] = (agentCounts[story['agent']] || 0) + 1;
+        }
+    });
 
-        stories.forEach(story => {
-            message += `\n- ${story['agent']} - ${story['url']} Waiting since ${story['createdDate']}`
-        });
+    const totalCards = stories.length;
+    let message = `<!here>\nThere are ${totalCards} cards waiting to be edited.\n`;
 
-        return message;
-    }
+    // Format by agent with counts
+    Object.entries(agentCounts).forEach(([agent, count]) => {
+        message += `\n${agent} - ${count}`;
+    });
+
+    return message;
+}
 }
 
 function getCompanyFromDesc(description) {
