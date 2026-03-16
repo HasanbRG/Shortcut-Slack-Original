@@ -48,7 +48,7 @@ app.post('/approve-story', async (req, res) => {
     }
 });
 
-app.get('/test-waiting-stories', async (req, res) => {
+app.post('/test-waiting-stories', async (req, res) => {
     const shortcutApi = new ShortcutApi();
     const slackApi = new SlackApi();
     const storiesResponse = await shortcutApi.searchStories("state:500000022 -is:archived");
