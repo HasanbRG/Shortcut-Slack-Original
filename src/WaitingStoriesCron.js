@@ -2,23 +2,32 @@ import { CronJob } from 'cron';
 import ShortcutApi from './ShortcutApi.js';
 import SlackApi from './SlackApi.js';
 
+//const waitingStoriesJob = new CronJob(
+//    '0 10,15 * * 1-5',
+//    getWaitingStories,
+//    null,
+//    false,
+//   'Europe/London'
+//);
+
+//const eveningJob = new CronJob(
+//    '20 19 * * 1-5',
+//    getWaitingStories,
+//    null,
+//    false,
+//    'Europe/London'
+//);
+
+//eveningJob.start();
+//waitingStoriesJob.start();
+
 const waitingStoriesJob = new CronJob(
-    '0 10,15 * * 1-5',
+    '0 9-17 * * 1-5',
     getWaitingStories,
     null,
     false,
     'Europe/London'
 );
-
-const eveningJob = new CronJob(
-    '20 19 * * 1-5',
-    getWaitingStories,
-    null,
-    false,
-    'Europe/London'
-);
-eveningJob.start();
-
 waitingStoriesJob.start();
 
 /**
@@ -26,24 +35,37 @@ waitingStoriesJob.start();
  */
 async function getWaitingStories()
 {
-    const shortcutApi = new ShortcutApi();
-    const slackApi = new SlackApi();
-    const storiesResponse = await shortcutApi.searchStories("state:500000022 -is:archived");
+    console.log('[CRON] Waiting stories job started at', new Date().toISOString());
+    
+    try {
+        const shortcutApi = new ShortcutApi();
+        const slackApi = new SlackApi();
+        const storiesResponse = await shortcutApi.searchStories("state:500000022 -is:archived");
 
-    let stories = [];
-    storiesResponse['data'].forEach(story => {
-        let productOwner = extractProductOwner(story);
+        console.log('[CRON] Found', storiesResponse['data'].length, 'stories in Needs Edit');
+
+        let stories = [];
+        storiesResponse['data'].forEach(story => {
+            let productOwner = extractProductOwner(story);
+            
+            if (productOwner) {
+                let storyData = {
+                    url: story['app_url'],
+                    agent: productOwner,
+                    createdDate: new Date(story['created_at']).toDateString()
+                };
+                stories.push(storyData);
+            }
+        });
+
+        console.log('[CRON] Filtered to', stories.length, 'stories with product owners');
         
-        let storyData = {
-            url: story['app_url'],
-            agent: productOwner,
-            createdDate: new Date(story['created_at']).toDateString()
-        };
-
-        stories.push(storyData);
-    });
-
-    slackApi.postWaitingStoriesToSlack(stories);
+        const result = await slackApi.postWaitingStoriesToSlack(stories);
+        
+        console.log('[CRON] Message posted to Slack. Status:', result.status);
+    } catch (error) {
+        console.error('[CRON] Error:', error);
+    }
 }
 
 /**
@@ -76,4 +98,4 @@ function extractProductOwner(story)
     return productOwner;
 }
 
-export default { waitingStoriesJob, eveningJob };
+export default {waitingStoriesJob};
