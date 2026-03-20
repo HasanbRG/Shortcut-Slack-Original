@@ -40,7 +40,7 @@ async function getWaitingStories()
     try {
         const shortcutApi = new ShortcutApi();
         const slackApi = new SlackApi();
-        const storiesResponse = await shortcutApi.searchStories("state:500000022 -is:archived");
+        const storiesResponse = await shortcutApi.searchStories("state:500007165 -is:archived");
 
         console.log('[CRON] Found', storiesResponse['data'].length, 'stories in Needs Edit');
 
