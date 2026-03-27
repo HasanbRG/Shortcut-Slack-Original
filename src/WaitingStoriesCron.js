@@ -2,25 +2,6 @@ import { CronJob } from 'cron';
 import ShortcutApi from './ShortcutApi.js';
 import SlackApi from './SlackApi.js';
 
-//const waitingStoriesJob = new CronJob(
-//    '0 10,15 * * 1-5',
-//    getWaitingStories,
-//    null,
-//    false,
-//   'Europe/London'
-//);
-
-//const eveningJob = new CronJob(
-//    '20 19 * * 1-5',
-//    getWaitingStories,
-//    null,
-//    false,
-//    'Europe/London'
-//);
-
-//eveningJob.start();
-//waitingStoriesJob.start();
-
 const waitingStoriesJob = new CronJob(
     '0 9-17 * * 1-5',
     getWaitingStories,
@@ -41,24 +22,25 @@ async function getWaitingStories()
         const shortcutApi = new ShortcutApi();
         const slackApi = new SlackApi();
         const storiesResponse = await shortcutApi.searchStories("state:500007165 -is:archived");
+        const memberNameCache = new Map();
 
         console.log('[CRON] Found', storiesResponse['data'].length, 'stories in Needs Edit');
 
         let stories = [];
-        storiesResponse['data'].forEach(story => {
-            let productOwner = extractProductOwner(story);
+        for (const story of storiesResponse['data']) {
+            const requestedBy = await getStoryRequesterName(story, shortcutApi, memberNameCache);
             
-            if (productOwner) {
+            if (requestedBy) {
                 let storyData = {
                     url: story['app_url'],
-                    agent: productOwner,
+                    agent: requestedBy,
                     createdDate: new Date(story['created_at']).toDateString()
                 };
                 stories.push(storyData);
             }
-        });
+        }
 
-        console.log('[CRON] Filtered to', stories.length, 'stories with product owners');
+        console.log('[CRON] Filtered to', stories.length, 'stories with requesters');
         
         const result = await slackApi.postWaitingStoriesToSlack(stories);
         
@@ -69,33 +51,38 @@ async function getWaitingStories()
 }
 
 /**
- * Gets the product owner from the story description
+ * Resolves the requesting member name from requested_by_id
  * @param {Object} story
- * @returns 
+ * @param {ShortcutApi} shortcutApi
+ * @param {Map<string, string>} memberNameCache
+ * @returns {Promise<string|null>}
  */
-function extractProductOwner(story)
+async function getStoryRequesterName(story, shortcutApi, memberNameCache)
 {
-    let description = story.description;
-    let customerDetails = description.split(/# Customer[\s\u00A0]Details/);
+    const memberId = story.requested_by_id;
 
-    let company = [];
-    if (customerDetails[1]) {
-        company = customerDetails[1].split("\n");
-    } else {
+    if (!memberId) {
         return null;
     }
 
-    let productOwner;
-    company.forEach(element => {
-        let [key, value] = element.split(':');
+    if (memberNameCache.has(memberId)) {
+        return memberNameCache.get(memberId);
+    }
 
-        if (key == "Product Owner") {
-            productOwner = value.trim();
-            return;
+    try {
+        const member = await shortcutApi.getMember(memberId);
+        const memberName = member?.profile?.name || member?.name || null;
+
+        if (memberName) {
+            memberNameCache.set(memberId, memberName);
         }
-    });
 
-    return productOwner;
+        return memberName;
+    } catch (error) {
+        console.error('[CRON] Failed to resolve requester for story', story.id, error);
+        return null;
+    }
 }
+
 
 export default {waitingStoriesJob};

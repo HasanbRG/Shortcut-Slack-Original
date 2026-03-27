@@ -63,7 +63,8 @@ class SlackApi
         let story = {
             type: storyData.type.toUpperCase(),
             title: storyData.title,
-            url: storyData.url
+            url: storyData.url,
+            requester: storyData.requester
         };
 
         company.forEach(element => {
@@ -79,7 +80,7 @@ class SlackApi
         const keys = [
             'type',
             'importance',
-            'product owner',
+            'requester',
             'company id',
             'subscription',
             'email',

@@ -59,6 +59,16 @@ class ShortcutApi
     }
 
     /**
+     * Gets details about an individual member
+     * @param {string} memberId UUID of the member
+     */
+    getMember(memberId) {
+        let endpoint = `/members/${memberId}`;
+        const response = this.#makeRequest(endpoint, this.#HTTP_GET);
+        return response;
+    }
+
+    /**
      * Gets all stories that match search parameters
      * @param {string} searchParams Query string  e.g. 'state:500007165 -is:archived' https://help.shortcut.com/hc/en-us/articles/360000046646-Searching-in-Shortcut-Using-Search-Operators
      * @returns 

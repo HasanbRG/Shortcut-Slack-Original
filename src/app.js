@@ -31,11 +31,15 @@ app.post('/approve-story', async (req, res) => {
         return;
     }
 
+    const memberNameCache = new Map();
+    const requesterName = await getStoryRequesterName(storyData, shortcutApi, memberNameCache);
+
     const data = {
         'title': storyData.name,
         'url': storyData.app_url,
         'type': storyData.story_type,
-        'description': storyData.description
+        'description': storyData.description,
+        'requester': requesterName
     }
     
     const result = await slackApi.postStoryApprovalToSlack(data); // Post approval message to slack channel
@@ -52,32 +56,47 @@ app.post('/test-waiting-stories', async (req, res) => {
     const shortcutApi = new ShortcutApi();
     const slackApi = new SlackApi();
     const storiesResponse = await shortcutApi.searchStories("state:500007165 -is:archived");
+    const memberNameCache = new Map();
 
     let stories = [];
-    storiesResponse['data'].forEach(story => {
-        let description = story.description;
-        let customerDetails = description.split(/# Customer[\s\u00A0]Details/);
-        let productOwner = null;
-        
-        if (customerDetails[1]) {
-            let company = customerDetails[1].split("\n");
-            company.forEach(element => {
-                let [key, value] = element.split(':');
-                if (key && value && key.trim() === "Product Owner") {
-                    productOwner = value.trim();
-                }
-            });
-        }
-        
-        if (productOwner) {
+    for (const story of storiesResponse['data']) {
+        const requesterName = await getStoryRequesterName(story, shortcutApi, memberNameCache);
+
+        if (requesterName) {
             stories.push({
                 url: story['app_url'],
-                agent: productOwner,
+                agent: requesterName,
                 createdDate: new Date(story['created_at']).toDateString()
             });
         }
-    });
+    }
 
     await slackApi.postWaitingStoriesToSlack(stories);
     res.send('Waiting stories message sent to Slack');
 });
+
+async function getStoryRequesterName(story, shortcutApi, memberNameCache) {
+    const memberId = story.requested_by_id;
+
+    if (!memberId) {
+        return null;
+    }
+
+    if (memberNameCache.has(memberId)) {
+        return memberNameCache.get(memberId);
+    }
+
+    try {
+        const member = await shortcutApi.getMember(memberId);
+        const memberName = member?.profile?.name || member?.name || null;
+
+        if (memberName) {
+            memberNameCache.set(memberId, memberName);
+        }
+
+        return memberName;
+    } catch (error) {
+        console.error('[API] Failed to resolve requester for story', story.id, error);
+        return null;
+    }
+}
