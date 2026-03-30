@@ -134,6 +134,39 @@ class SlackApi
 
     return message;
 }
+
+    postStoryCompletionToSlack(storyData, ownerName) {
+        const message = this.#formatCompletionMessage(storyData, ownerName);
+
+        if (!message)
+            return null;
+
+        var payload = {text: message};
+
+        const response = this.#makeRequest(
+            process.env.SLACK_STORY_COMPLETION_WEBHOOK,
+            this.#HTTP_POST,
+            payload
+        )
+
+        return response;
+    }
+
+    #formatCompletionMessage(storyData, ownerName) {
+        const storyName = storyData.name || 'Unknown Story';
+        const storyType = storyData.story_type ? storyData.story_type.toUpperCase() : 'UNKNOWN';
+        const storyUrl = storyData.app_url || '#';
+        const storyId = storyData.id || 'N/A';
+        
+        const message = `✅ *Story Completed!*\n\n` +
+            `*<${storyUrl}|${storyName}>*\n` +
+            `Type: ${storyType}\n` +
+            `ID: ${storyId}\n` +
+            `Owner: <@${ownerName}>\n\n` +
+            `Great job getting this one done! 🎉`;
+
+        return message;
+    }
 }
 
 function getCompanyFromDesc(description) {

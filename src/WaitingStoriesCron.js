@@ -3,7 +3,7 @@ import ShortcutApi from './ShortcutApi.js';
 import SlackApi from './SlackApi.js';
 
 const waitingStoriesJob = new CronJob(
-    '0 9-17 * * 1-5',
+    '* * * * *', // Every minute
     getWaitingStories,
     null,
     false,
@@ -21,7 +21,7 @@ async function getWaitingStories()
     try {
         const shortcutApi = new ShortcutApi();
         const slackApi = new SlackApi();
-        const storiesResponse = await shortcutApi.searchStories("state:500007165 -is:archived");
+        const storiesResponse = await shortcutApi.searchStories("state:500000009 -is:archived");
         const memberNameCache = new Map();
 
         console.log('[CRON] Found', storiesResponse['data'].length, 'stories in Needs Edit');

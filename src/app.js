@@ -2,6 +2,7 @@ import ShortcutApi from './ShortcutApi.js';
 import SlackApi from './SlackApi.js';
 import express, { json, urlencoded } from 'express';
 import './WaitingStoriesCron.js'; // Starts cron job for stories in "Needs Edit" state in Shortcut
+import './StoryCompletionCron.js'; // Starts cron job for completed stories notifications
 
 var app = express();
 app.use(json());
@@ -55,7 +56,7 @@ app.post('/approve-story', async (req, res) => {
 app.post('/test-waiting-stories', async (req, res) => {
     const shortcutApi = new ShortcutApi();
     const slackApi = new SlackApi();
-    const storiesResponse = await shortcutApi.searchStories("state:500007165 -is:archived");
+    const storiesResponse = await shortcutApi.searchStories("state:500000009 -is:archived");
     const memberNameCache = new Map();
 
     let stories = [];
