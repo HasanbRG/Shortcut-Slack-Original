@@ -1,38 +1,7 @@
 import { CronJob } from 'cron';
 import ShortcutApi from './ShortcutApi.js';
 import SlackApi from './SlackApi.js';
-import fs from 'fs';
-import path from 'path';
-
-const POSTED_STORIES_FILE = '/usr/src/app/data/postedStories.json';
-
-// Ensure data directory exists
-const dataDir = path.dirname(POSTED_STORIES_FILE);
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-}
-
-let postedStoryIds = loadPostedStories();
-
-function loadPostedStories() {
-    try {
-        if (fs.existsSync(POSTED_STORIES_FILE)) {
-            const data = fs.readFileSync(POSTED_STORIES_FILE, 'utf8');
-            return new Set(JSON.parse(data));
-        }
-    } catch (error) {
-        console.error('[CRON] Error loading posted stories:', error);
-    }
-    return new Set();
-}
-
-function savePostedStories() {
-    try {
-        fs.writeFileSync(POSTED_STORIES_FILE, JSON.stringify(Array.from(postedStoryIds)));
-    } catch (error) {
-        console.error('[CRON] Error saving posted stories:', error);
-    }
-}
+import db from './DatabaseManager.js';
 
 const storyCompletionJob = new CronJob(
     '* * * * *', // Every minute
@@ -61,20 +30,22 @@ async function checkCompletedStories()
 
         console.log('[CRON] Found', stories.length, 'completed stories');
 
+        // Get all previously posted stories from database
+        const postedStoryIds = await db.getAllPostedStoryIds();
+
         // Remove stories that are no longer in Done state from the posted list
         for (const storyId of postedStoryIds) {
             if (!currentStoryIds.has(storyId)) {
-                postedStoryIds.delete(storyId);
+                await db.removeStoryFromPosted(storyId);
                 console.log('[CRON] Story', storyId, 'removed from Done state, marking for re-post if it returns');
             }
         }
-        savePostedStories();
 
         const memberNameCache = new Map();
         
         for (const story of stories) {
             // Skip if already posted
-            if (postedStoryIds.has(story.id)) {
+            if (await db.isStoryPosted(story.id)) {
                 console.log('[CRON] Story', story.id, 'already posted, skipping');
                 continue;
             }
@@ -82,17 +53,26 @@ async function checkCompletedStories()
             try {
                 const ownerName = await getStoryRequesterName(story, shortcutApi, memberNameCache);
                 
-                if (ownerName) {
-                    await slackApi.postStoryCompletionToSlack(story, ownerName);
-                    postedStoryIds.add(story.id);
-                    savePostedStories();
-                    console.log('[CRON] Completion message posted for story', story.id);
-                    
-                    // Wait 5 seconds before posting the next story
-                    await new Promise(resolve => setTimeout(resolve, 5000));
+                if (!ownerName) {
+                    console.log('[CRON] Story', story.id, 'has no owner name, skipping');
+                    continue;
                 }
+                
+                // Post to Slack first
+                const response = await slackApi.postStoryCompletionToSlack(story, ownerName);
+                
+                // Only mark as posted if Slack post was successful
+                if (response && (response.ok === true || response.status === 200)) {
+                    await db.markStoryAsPosted(story.id);
+                    console.log('[CRON] Completion message posted for story', story.id);
+                } else {
+                    console.error('[CRON] Slack post failed for story', story.id, '| Status:', response?.status, '| OK:', response?.ok);
+                }
+                
+                // Wait 5 seconds before posting the next story
+                await new Promise(resolve => setTimeout(resolve, 5000));
             } catch (error) {
-                console.error('[CRON] Failed to post completion for story', story.id, error);
+                console.error('[CRON] Exception for story', story.id, ':', error.message);
             }
         }
     } catch (error) {

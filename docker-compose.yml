@@ -1,7 +1,26 @@
 services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: shortcut_slack
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   app:
     build:
       context: .
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "8080:8000"
       - "9229:9229"
@@ -10,3 +29,11 @@ services:
       - /usr/src/app/node_modules
     environment:
       - APP_ENV=development
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=shortcut_slack
+
+volumes:
+  postgres_data:

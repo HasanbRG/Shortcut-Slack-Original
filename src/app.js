@@ -1,12 +1,20 @@
 import ShortcutApi from './ShortcutApi.js';
 import SlackApi from './SlackApi.js';
 import express, { json, urlencoded } from 'express';
+import db from './DatabaseManager.js';
 import './WaitingStoriesCron.js'; // Starts cron job for stories in "Needs Edit" state in Shortcut
 import './StoryCompletionCron.js'; // Starts cron job for completed stories notifications
 
 var app = express();
 app.use(json());
 app.use(urlencoded({extended: true}));
+
+// Initialize database
+db.initialize().catch(err => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+});
+
 app.listen(8000) // Start server
 
 app.get('/', (req, res) => {

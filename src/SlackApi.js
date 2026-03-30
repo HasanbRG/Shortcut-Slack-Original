@@ -20,7 +20,7 @@ class SlackApi
     }
 
     async #makeRequest(endpoint, method, data = null) {
-        const response = fetch(endpoint, {
+        const response = await fetch(endpoint, {
             method: method,
             headers: {
                 'Content-Type': 'application/json'
@@ -28,10 +28,10 @@ class SlackApi
             body: JSON.stringify(data)
         });
 
-        return await response;
+        return response;
     }
 
-    postStoryApprovalToSlack(storyData) {
+    async postStoryApprovalToSlack(storyData) {
         const message = this.#formatStoryMessage(storyData);
 
         console.log(message);
@@ -41,7 +41,7 @@ class SlackApi
 
         var payload = {text: message};
 
-        const response = this.#makeRequest(
+        const response = await this.#makeRequest(
             process.env.SLACK_APPROVE_STORY_WEBHOOK,
             this.#HTTP_POST,
             payload
@@ -77,28 +77,21 @@ class SlackApi
             }
         });
         
-        const keys = [
-            'type',
-            'importance',
-            'requester',
-            'company id',
-            'subscription',
-            'email',
-            'title',
-            'url'
-        ];
-
-        let message = "";
-        keys.forEach(key => {
-            if (Object.hasOwn(story, key)) {
-                message += ` ${story[key]} |`;
-            }
-        });
+        let message = "Story Approval Request\n\n";
+        
+        if (story.title) message += `Title: ${story.title}\n`;
+        if (story.type) message += `Type: ${story.type}\n`;
+        if (story.importance) message += `Importance: ${story.importance}\n`;
+        if (story.requester) message += `Requester: ${story.requester}\n`;
+        if (story['company id']) message += `Company ID: ${story['company id']}\n`;
+        if (story.subscription) message += `Subscription: ${story.subscription}\n`;
+        if (story.email) message += `Email: ${story.email}\n`;
+        if (story.url) message += `Link: ${story.url}`;
 
         return message;
     }
 
-    postWaitingStoriesToSlack(stories) {
+    async postWaitingStoriesToSlack(stories) {
         const message = this.#formatWaitingStoriesMessage(stories);
 
         if (!message)
@@ -135,7 +128,7 @@ class SlackApi
     return message;
 }
 
-    postStoryCompletionToSlack(storyData, ownerName) {
+    async postStoryCompletionToSlack(storyData, ownerName) {
         const message = this.#formatCompletionMessage(storyData, ownerName);
 
         if (!message)
@@ -143,7 +136,7 @@ class SlackApi
 
         var payload = {text: message};
 
-        const response = this.#makeRequest(
+        const response = await this.#makeRequest(
             process.env.SLACK_STORY_COMPLETION_WEBHOOK,
             this.#HTTP_POST,
             payload
@@ -158,12 +151,12 @@ class SlackApi
         const storyUrl = storyData.app_url || '#';
         const storyId = storyData.id || 'N/A';
         
-        const message = `✅ *Story Completed!*\n\n` +
-            `*<${storyUrl}|${storyName}>*\n` +
+        const message = `Story Completed\n\n` +
+            `Title: ${storyName}\n` +
             `Type: ${storyType}\n` +
             `ID: ${storyId}\n` +
-            `Owner: <@${ownerName}>\n\n` +
-            `Great job getting this one done! 🎉`;
+            `Owner: ${ownerName}\n` +
+            `Link: ${storyUrl}`;
 
         return message;
     }
