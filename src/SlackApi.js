@@ -1,23 +1,9 @@
 class SlackApi
 {
     /**
-     * GET
-     */
-    #HTTP_GET = 'GET';
-
-    /**
      * POST
      */
     #HTTP_POST = 'POST';
-
-    /**
-     * Token
-     */
-    #token;
-
-    constructor() {
-
-    }
 
     async #makeRequest(endpoint, method, data = null) {
         const response = await fetch(endpoint, {
@@ -160,18 +146,6 @@ class SlackApi
 
         return message;
     }
-}
-
-function getCompanyFromDesc(description) {
-    const parts = description.split("\n");
-    for (let i = 0; i < parts.length; i++) {
-        if (parts[i].trim().toLowerCase() === "# customer details\n") {
-            console.log("----------------------------")
-            return parts.slice(i - parts.length);
-        }        
-    }
-
-    return [];
 }
 
 export default SlackApi;
