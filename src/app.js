@@ -61,27 +61,8 @@ app.post('/approve-story', async (req, res) => {
     }
 });
 
-app.post('/test-waiting-stories', async (req, res) => {
-    const shortcutApi = new ShortcutApi();
-    const slackApi = new SlackApi();
-    const storiesResponse = await shortcutApi.searchStories("state:500000009 -is:archived");
-    const memberNameCache = new Map();
-
-    let stories = [];
-    for (const story of storiesResponse['data']) {
-        const requesterName = await getStoryRequesterName(story, shortcutApi, memberNameCache);
-
-        if (requesterName) {
-            stories.push({
-                url: story['app_url'],
-                agent: requesterName,
-                createdDate: new Date(story['created_at']).toDateString()
-            });
-        }
-    }
-
-    await slackApi.postWaitingStoriesToSlack(stories);
-    res.send('Waiting stories message sent to Slack');
+app.get('/health', (req, res) => {
+    res.status(200).send('OK - Health check passed');
 });
 
 async function getStoryRequesterName(story, shortcutApi, memberNameCache) {
