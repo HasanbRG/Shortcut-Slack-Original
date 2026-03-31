@@ -18,14 +18,19 @@ class SlackApi
     }
 
     async postStoryApprovalToSlack(storyData) {
-        const message = this.#formatStoryMessage(storyData);
+        const fields = this.#formatStoryMessage(storyData);
 
-        console.log(message);
+        console.log(fields);
 
-        if (!message)
+        if (!fields)
             return null;
 
-        var payload = {text: message};
+        var payload = {
+            attachments: [{
+                color: "#0099FF",
+                fields: fields
+            }]
+        };
 
         const response = await this.#makeRequest(
             process.env.SLACK_APPROVE_STORY_WEBHOOK,
@@ -63,29 +68,34 @@ class SlackApi
             }
         });
         
-        let message = "Story Approval Request\n\n";
+        let fields = [];
         
-        if (story.title) message += `Title: ${story.title}\n`;
-        if (story.type) message += `Type: ${story.type}\n`;
-        if (story.importance) message += `Importance: ${story.importance}\n`;
-        if (story.requester) message += `Requester: ${story.requester}\n`;
-        if (story['company id']) message += `Company ID: ${story['company id']}\n`;
-        if (story.subscription) message += `Subscription: ${story.subscription}\n`;
-        if (story.email) message += `Email: ${story.email}\n`;
-        if (story.url) message += `Link: ${story.url}`;
+        if (story.title) fields.push({"title": "Title", "value": story.title, "short": true});
+        if (story.type) fields.push({"title": "Type", "value": story.type, "short": true});
+        if (story.importance) fields.push({"title": "Importance", "value": story.importance, "short": true});
+        if (story.requester) fields.push({"title": "Requester", "value": story.requester, "short": true});
+        if (story['company id']) fields.push({"title": "Company ID", "value": story['company id'], "short": true});
+        if (story.subscription) fields.push({"title": "Subscription", "value": story.subscription, "short": true});
+        if (story.email) fields.push({"title": "Email", "value": story.email, "short": true});
+        if (story.url) fields.push({"title": "Link", "value": story.url, "short": false});
 
-        return message;
+        return fields;
     }
 
     async postWaitingStoriesToSlack(stories) {
-        const message = this.#formatWaitingStoriesMessage(stories);
+        const fields = this.#formatWaitingStoriesMessage(stories);
 
-        if (!message)
+        if (!fields)
             return null;
 
-        var payload = {text: message};
+        var payload = {
+            attachments: [{
+                color: "#FF9900",
+                fields: fields
+            }]
+        };
 
-        const response = this.#makeRequest(
+        const response = await this.#makeRequest(
             process.env.SLACK_WAITING_STORY_WEBHOOK,
             this.#HTTP_POST,
             payload
@@ -95,32 +105,36 @@ class SlackApi
     }
 
     #formatWaitingStoriesMessage(stories) {
-    // Count stories by agent
-    const agentCounts = {};
-    stories.forEach(story => {
-        if (story['agent']) {
-            agentCounts[story['agent']] = (agentCounts[story['agent']] || 0) + 1;
-        }
-    });
+        const agentCounts = {};
+        stories.forEach(story => {
+            if (story['agent']) {
+                agentCounts[story['agent']] = (agentCounts[story['agent']] || 0) + 1;
+            }
+        });
 
-    const totalCards = stories.length;
-    let message = `<!here>\nThere are ${totalCards} cards waiting to be edited.\n`;
+        let fields = [];
+        const totalCards = stories.length;
+        fields.push({"title": "Total Cards", "value": totalCards.toString(), "short": false});
 
-    // Format by agent with counts
-    Object.entries(agentCounts).forEach(([agent, count]) => {
-        message += `\n${agent} - ${count}`;
-    });
+        Object.entries(agentCounts).forEach(([agent, count]) => {
+            fields.push({"title": agent, "value": count.toString(), "short": true});
+        });
 
-    return message;
-}
+        return fields;
+    }
 
     async postStoryCompletionToSlack(storyData, ownerName) {
-        const message = this.#formatCompletionMessage(storyData, ownerName);
+        const fields = this.#formatCompletionMessage(storyData, ownerName);
 
-        if (!message)
+        if (!fields)
             return null;
 
-        var payload = {text: message};
+        var payload = {
+            attachments: [{
+                color: "#36A64F",
+                fields: fields
+            }]
+        };
 
         const response = await this.#makeRequest(
             process.env.SLACK_STORY_COMPLETION_WEBHOOK,
@@ -137,14 +151,13 @@ class SlackApi
         const storyUrl = storyData.app_url || '#';
         const storyId = storyData.id || 'N/A';
         
-        const message = `Story Completed\n\n` +
-            `Title: ${storyName}\n` +
-            `Type: ${storyType}\n` +
-            `ID: ${storyId}\n` +
-            `Owner: ${ownerName}\n` +
-            `Link: ${storyUrl}`;
-
-        return message;
+        return [
+            {"title": "Title", "value": storyName, "short": true},
+            {"title": "Type", "value": storyType, "short": true},
+            {"title": "ID", "value": storyId.toString(), "short": true},
+            {"title": "Owner", "value": ownerName, "short": true},
+            {"title": "Link", "value": storyUrl, "short": false}
+        ];
     }
 }
 
