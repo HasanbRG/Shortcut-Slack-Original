@@ -24,7 +24,13 @@ async function checkCompletedStories()
         const shortcutApi = new ShortcutApi();
         const slackApi = new SlackApi();
         
-        const storiesResponse = await shortcutApi.searchStories('state:500000007 -is:archived');
+        // Calculate date from 24 hours ago
+        const oneDayAgo = new Date();
+        oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+        const dateFilter = oneDayAgo.toISOString().split('T')[0];
+        
+        // Search for stories in Completed state updated in last 24 hours
+        const storiesResponse = await shortcutApi.searchStories(`state:500005946 -is:archived updated_at:>=${dateFilter}`);
         const stories = storiesResponse['data'] || [];
         const currentStoryIds = new Set(stories.map(s => s.id));
 
@@ -44,9 +50,8 @@ async function checkCompletedStories()
         const memberNameCache = new Map();
         
         for (const story of stories) {
-            // Skip if already posted
-            if (await db.isStoryPosted(story.id)) {
-                console.log('[CRON] Story', story.id, 'already posted, skipping');
+            // Skip if already posted (check in-memory Set for O(1) performance)
+            if (postedStoryIds.has(story.id)) {
                 continue;
             }
             
